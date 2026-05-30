@@ -1,79 +1,104 @@
 import React, { createContext, useEffect, useState } from "react";
-import {
-  loginApi,
-  registerApi,
-  refreshApi,
-  meApi,
-  logoutApi
-} from "../api/auth";
 import { User } from "../types";
 
 interface AuthContextValue {
   user: User | null;
-  accessToken: string | null;
-  initializing: boolean;
+  loading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  register: (name: string, email: string, password: string) => Promise<void>;
-  logout: () => Promise<void>;
+  register: (email: string, password: string) => Promise<void>;
+  logout: () => void;
 }
 
-export const AuthContext = createContext<AuthContextValue>({} as AuthContextValue);
+const defaultValue: AuthContextValue = {
+  user: null,
+  loading: true,
+  // eslint-disable-next-line @typescript-eslint/no-empty-function
+  login: async () => {},
+  // eslint-disable-next-line @typescript-eslint/no-empty-function
+  register: async () => {},
+  // eslint-disable-next-line @typescript-eslint/no-empty-function
+  logout: () => {}
+};
 
-let accessTokenRef: string | null = null;
-export const getAccessToken = () => accessTokenRef;
+export const AuthContext = createContext<AuthContextValue>(defaultValue);
 
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
-  children
-}) => {
+function getUsers() {
+  try {
+    return JSON.parse(localStorage.getItem("users") || "[]") as Array<{
+      email: string;
+      password: string;
+    }>;
+  } catch {
+    return [];
+  }
+}
+
+function saveUsers(users: { email: string; password: string }[]) {
+  localStorage.setItem("users", JSON.stringify(users));
+}
+
+function createUserObject(email: string): User {
+  return {
+    id: email,
+    name: email.split("@")[0],
+    email,
+    role: email === "admin" ? "admin" : "user",
+    created_at: new Date().toISOString()
+  };
+}
+
+export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [accessToken, setAccessToken] = useState<string | null>(null);
-  const [initializing, setInitializing] = useState(true);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const init = async () => {
+    const stored = localStorage.getItem("currentUser");
+    if (stored) {
       try {
-        const token = await refreshApi();
-        setAccessToken(token);
-        accessTokenRef = token;
-        const me = await meApi();
-        setUser(me);
+        setUser(JSON.parse(stored));
       } catch {
-        setUser(null);
-        setAccessToken(null);
-        accessTokenRef = null;
-      } finally {
-        setInitializing(false);
+        /* ignore */
       }
-    };
-    init();
+    }
+    setLoading(false);
   }, []);
 
-  const login = async (email: string, password: string) => {
-    const { user, accessToken } = await loginApi(email, password);
-    setUser(user);
-    setAccessToken(accessToken);
-    accessTokenRef = accessToken;
-  };
+  async function login(email: string, password: string) {
+    // системная учётка admin/admin
+    if (email === "admin" && password === "admin") {
+      const adminUser = createUserObject("admin");
+      localStorage.setItem("currentUser", JSON.stringify(adminUser));
+      setUser(adminUser);
+      return;
+    }
 
-  const register = async (name: string, email: string, password: string) => {
-    const { user, accessToken } = await registerApi(name, email, password);
-    setUser(user);
-    setAccessToken(accessToken);
-    accessTokenRef = accessToken;
-  };
+    const users = getUsers();
+    const found = users.find((u) => u.email === email && u.password === password);
+    if (!found) {
+      throw new Error("Неверный email или пароль");
+    }
+    const userObj = createUserObject(found.email);
+    localStorage.setItem("currentUser", JSON.stringify(userObj));
+    setUser(userObj);
+  }
 
-  const logout = async () => {
-    await logoutApi();
+  async function register(email: string, password: string) {
+    const users = getUsers();
+    if (users.some((u) => u.email === email)) {
+      throw new Error("Пользователь с таким email уже зарегистрирован");
+    }
+    users.push({ email, password });
+    saveUsers(users);
+  }
+
+  function logout() {
+    localStorage.removeItem("currentUser");
     setUser(null);
-    setAccessToken(null);
-    accessTokenRef = null;
-  };
+  }
 
   return (
-    <AuthContext.Provider
-      value={{ user, accessToken, initializing, login, register, logout }}
-    >
+    <AuthContext.Provider value={{ user, loading, login, register, logout }}>
       {children}
     </AuthContext.Provider>
   );
-};
+}
