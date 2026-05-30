@@ -5,100 +5,59 @@ interface AuthContextValue {
   user: User | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string) => Promise<void>;
   logout: () => void;
+  register: (
+    name: string,
+    email: string,
+    password: string,
+    confirmPassword: string
+  ) => Promise<void>;
 }
 
-const defaultValue: AuthContextValue = {
+export const AuthContext = createContext<AuthContextValue>({
   user: null,
   loading: true,
-  // eslint-disable-next-line @typescript-eslint/no-empty-function
   login: async () => {},
-  // eslint-disable-next-line @typescript-eslint/no-empty-function
+  logout: () => {},
   register: async () => {},
-  // eslint-disable-next-line @typescript-eslint/no-empty-function
-  logout: () => {}
-};
+});
 
-export const AuthContext = createContext<AuthContextValue>(defaultValue);
-
-function getUsers() {
-  try {
-    return JSON.parse(localStorage.getItem("users") || "[]") as Array<{
-      email: string;
-      password: string;
-    }>;
-  } catch {
-    return [];
-  }
+export function getAccessToken(): string | null {
+  return localStorage.getItem("accessToken");
 }
 
-function saveUsers(users: { email: string; password: string }[]) {
-  localStorage.setItem("users", JSON.stringify(users));
-}
-
-function createUserObject(email: string): User {
-  return {
-    id: email,
-    name: email.split("@")[0],
-    email,
-    role: email === "admin" ? "admin" : "user",
-    created_at: new Date().toISOString()
-  };
-}
-
-export function AuthProvider({ children }: { children: React.ReactNode }) {
+export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const stored = localStorage.getItem("currentUser");
-    if (stored) {
-      try {
-        setUser(JSON.parse(stored));
-      } catch {
-        /* ignore */
-      }
-    }
+    // Here you would fetch current user with token if exists
+    const stored = localStorage.getItem("user");
+    if (stored) setUser(JSON.parse(stored));
     setLoading(false);
   }, []);
 
   async function login(email: string, password: string) {
-    // системная учётка admin/admin
-    if (email === "admin" && password === "admin") {
-      const adminUser = createUserObject("admin");
-      localStorage.setItem("currentUser", JSON.stringify(adminUser));
-      setUser(adminUser);
-      return;
-    }
-
-    const users = getUsers();
-    const found = users.find((u) => u.email === email && u.password === password);
-    if (!found) {
-      throw new Error("Неверный email или пароль");
-    }
-    const userObj = createUserObject(found.email);
-    localStorage.setItem("currentUser", JSON.stringify(userObj));
-    setUser(userObj);
+    // call loginApi
   }
 
-  async function register(email: string, password: string) {
-    const users = getUsers();
-    if (users.some((u) => u.email === email)) {
-      throw new Error("Пользователь с таким email уже зарегистрирован");
-    }
-    users.push({ email, password });
-    saveUsers(users);
+  async function register(
+    name: string,
+    email: string,
+    password: string,
+    confirmPassword: string
+  ) {
+    // call registerApi
   }
 
   function logout() {
-    localStorage.removeItem("currentUser");
+    localStorage.removeItem("user");
     setUser(null);
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, logout, register }}>
       {children}
     </AuthContext.Provider>
   );
-}
+};
