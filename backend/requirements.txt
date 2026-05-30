@@ -1,0 +1,5 @@
+fastapi
+uvicorn[standard]
+PyJWT==2.8.0
+passlib[bcrypt]
+email-validator
