@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import Dashboard from "./pages/Dashboard";
 import AuthPage from "./pages/AuthPage";
+import Register from "./pages/Register";
 import { useAuth } from "./hooks/useAuth";
 import Loader from "./components/Loader";
 
@@ -11,24 +12,21 @@ export default function App() {
 
   return (
     <Routes>
-      {/* Root route renders combined AuthPage when user is not authenticated */}
-      <Route
-        path="/"
-        element={user ? <Navigate to="/dashboard" replace /> : <AuthPage />}
-      />
-
-      {/* Legacy paths redirect to root */}
-      <Route path="/login" element={<Navigate to="/" replace />} />
-      <Route path="/register" element={<Navigate to="/" replace />} />
-
-      {/* Protected dashboard */}
-      <Route
-        path="/dashboard"
-        element={user ? <Dashboard /> : <Navigate to="/" replace />}
-      />
-
-      {/* Fallback */}
-      <Route path="*" element={<Navigate to="/" replace />} />
+      {!user ? (
+        <>
+          {/* Public routes */}
+          <Route path="/login" element={<AuthPage />} />
+          <Route path="/register" element={<Register />} />
+          {/* Legacy redirect from old /auth path */}
+          <Route path="/auth" element={<Navigate to="/login" replace />} />
+          <Route path="*" element={<Navigate to="/login" replace />} />
+        </>
+      ) : (
+        <>
+          <Route path="/" element={<Dashboard />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </>
+      )}
     </Routes>
   );
 }

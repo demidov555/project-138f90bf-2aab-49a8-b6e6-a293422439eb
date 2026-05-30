@@ -8,13 +8,6 @@ interface FormValues {
   confirmPassword: string;
 }
 
-interface FormErrors {
-  name?: string;
-  email?: string;
-  password?: string;
-  confirmPassword?: string;
-}
-
 export default function RegistrationForm() {
   const navigate = useNavigate();
 
@@ -22,133 +15,82 @@ export default function RegistrationForm() {
     name: "",
     email: "",
     password: "",
-    confirmPassword: ""
+    confirmPassword: "",
   });
-  const [errors, setErrors] = useState<FormErrors>({});
-  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
 
-  function validate(current: FormValues): FormErrors {
-    const newErrors: FormErrors = {};
-
-    if (!current.email) {
-      newErrors.email = "Email обязателен";
-    } else if (!/^[\w-.]+@([\w-]+\.)+[\w-]{2,}$/i.test(current.email)) {
-      newErrors.email = "Неверный формат email";
-    }
-
-    if (!current.password) {
-      newErrors.password = "Пароль обязателен";
-    } else if (current.password.length < 8) {
-      newErrors.password = "Пароль должен быть не короче 8 символов";
-    }
-
-    if (!current.confirmPassword) {
-      newErrors.confirmPassword = "Подтверждение пароля обязательно";
-    } else if (current.password !== current.confirmPassword) {
-      newErrors.confirmPassword = "Пароли не совпадают";
-    }
-
-    return newErrors;
-  }
+  const validateEmail = (email: string) =>
+    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const { name, value } = e.target;
-    setValues((prev) => ({ ...prev, [name]: value }));
+    setValues({ ...values, [e.target.name]: e.target.value });
   }
 
-  function handleSubmit(e: FormEvent<HTMLFormElement>) {
+  function handleSubmit(e: FormEvent) {
     e.preventDefault();
 
-    const validationErrors = validate(values);
-    setErrors(validationErrors);
+    if (values.name.trim().length < 2) {
+      setError("Name must be at least 2 characters");
+      return;
+    }
+    if (!validateEmail(values.email)) {
+      setError("Invalid email");
+      return;
+    }
+    if (values.password.length < 6) {
+      setError("Password must be at least 6 characters");
+      return;
+    }
+    if (values.password !== values.confirmPassword) {
+      setError("Passwords do not match");
+      return;
+    }
 
-    if (Object.keys(validationErrors).length !== 0) return;
+    // Persist user to localStorage (demo only)
+    const users = JSON.parse(localStorage.getItem("users") || "[]");
+    users.push({
+      id: Date.now().toString(),
+      name: values.name,
+      email: values.email,
+      password: values.password,
+    });
+    localStorage.setItem("users", JSON.stringify(users));
 
-    // Заглушка регистрации
-    setSubmitting(true);
-    console.log("Registration data", values);
-
-    setTimeout(() => {
-      window.alert("Регистрация успешна. Пожалуйста, войдите.");
-      navigate("/login");
-    }, 500);
+    alert("Аккаунт создан, войдите");
+    navigate("/login");
   }
 
-  const isValid = Object.keys(validate(values)).length === 0;
-
   return (
-    <form className="auth-form" onSubmit={handleSubmit} noValidate>
-      <h2>Регистрация</h2>
-
-      <div className="form-group">
-        <label htmlFor="name">Имя</label>
-        <input
-          id="name"
-          name="name"
-          type="text"
-          placeholder="Ваше имя"
-          aria-label="Имя"
-          value={values.name}
-          onChange={handleChange}
-        />
-        {errors.name && <span className="error-text">{errors.name}</span>}
-      </div>
-
-      <div className="form-group">
-        <label htmlFor="email">Email *</label>
-        <input
-          id="email"
-          name="email"
-          type="email"
-          required
-          placeholder="example@mail.com"
-          aria-label="Email"
-          value={values.email}
-          onChange={handleChange}
-        />
-        {errors.email && <span className="error-text">{errors.email}</span>}
-      </div>
-
-      <div className="form-group">
-        <label htmlFor="password">Пароль *</label>
-        <input
-          id="password"
-          name="password"
-          type="password"
-          required
-          placeholder="Минимум 8 символов"
-          aria-label="Пароль"
-          value={values.password}
-          onChange={handleChange}
-        />
-        {errors.password && <span className="error-text">{errors.password}</span>}
-      </div>
-
-      <div className="form-group">
-        <label htmlFor="confirmPassword">Подтвердите пароль *</label>
-        <input
-          id="confirmPassword"
-          name="confirmPassword"
-          type="password"
-          required
-          placeholder="Повторите пароль"
-          aria-label="Подтверждение пароля"
-          value={values.confirmPassword}
-          onChange={handleChange}
-        />
-        {errors.confirmPassword && (
-          <span className="error-text">{errors.confirmPassword}</span>
-        )}
-      </div>
-
-      <button
-        type="submit"
-        aria-label="Зарегистрироваться"
-        disabled={!isValid || submitting}
-        className="primary-btn"
-      >
-        {submitting ? "..." : "Зарегистрироваться"}
-      </button>
+    <form onSubmit={handleSubmit}>
+      {error && <p className="error">{error}</p>}
+      <input
+        name="name"
+        placeholder="Name"
+        value={values.name}
+        onChange={handleChange}
+      />
+      <input
+        name="email"
+        type="email"
+        placeholder="Email"
+        value={values.email}
+        onChange={handleChange}
+      />
+      <input
+        name="password"
+        type="password"
+        placeholder="Password"
+        value={values.password}
+        onChange={handleChange}
+      />
+      <input
+        name="confirmPassword"
+        type="password"
+        placeholder="Confirm password"
+        value={values.confirmPassword}
+        onChange={handleChange}
+      />
+      <button type="submit">Register</button>
     </form>
   );
 }
